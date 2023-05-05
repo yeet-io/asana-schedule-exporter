@@ -78,6 +78,7 @@ router.get('/', async (req, res) => {
     const token = await client.app.accessTokenFromCode(code);
     client.useOauth({ credentials: token.access_token });
   } catch (error) {
+    console.log(error);
     res.status(500).send('Error during Asana OAuth authentication.');
     return;
   }
