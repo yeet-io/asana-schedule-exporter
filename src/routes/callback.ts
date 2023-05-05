@@ -2,7 +2,10 @@ import PDFDocument from 'pdfkit-table';
 import moment from 'moment-timezone';
 import asanaClient from '../asanaClient';
 import express, { Response} from 'express';
+import request from 'request';
 import asana from 'asana';
+
+request.debug = true;
 
 const router = express.Router();
 
