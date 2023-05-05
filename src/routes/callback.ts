@@ -2,32 +2,79 @@ import PDFDocument from 'pdfkit-table';
 import moment from 'moment-timezone';
 import asanaClient from '../asanaClient';
 import express, { Response} from 'express';
-import request from 'request';
 import asana from 'asana';
-
-request.debug = true;
 
 const router = express.Router();
 
 async function fetchAllTasksByProject(client: asana.Client, projectId: string) {
   let allTasks: asana.resources.Tasks.Type[] = [];
-  let currentPage : asana.resources.ResourceList<asana.resources.Tasks.Type> | null = 
+  let currentPage: asana.resources.ResourceList<asana.resources.Tasks.Type> | null = 
     await client.tasks.findByProject(projectId, {
-      opt_fields: 'gid,name,start_at,due_at,tags.gid,tags.name',
+      opt_fields: 'gid,tags.gid,tags.name',
     });
 
-  while(currentPage) {
-    allTasks = allTasks.concat(
-      currentPage.data.filter(task => 
-        task.tags.some(tag => 
-          tag.name === process.env.ASANA_TIMELINE_TAG
+  const tasksWithTagsIds: string[] = [];
+
+  while (currentPage) {
+    tasksWithTagsIds.push(
+      ...currentPage.data
+        .filter(task =>
+          task.tags.some(tag => tag.name === process.env.ASANA_TIMELINE_TAG)
         )
-      )
+        .map(task => task.gid)
     );
+
     currentPage = await currentPage.nextPage();
   }
 
+  for (const taskId of tasksWithTagsIds) {
+    let subtasksPage: asana.resources.ResourceList<asana.resources.Tasks.Type> | null = 
+      await client.tasks.subtasks(taskId, {
+        opt_fields: 'name,notes,start_at,start_on,due_at,due_on',
+      });
+
+    while (subtasksPage) {
+      allTasks = allTasks.concat(
+        subtasksPage.data.filter(subtask => subtask.start_at || subtask.start_on || subtask.due_at || subtask.due_on)
+      );
+      subtasksPage = await subtasksPage.nextPage();
+    }
+  }
+
   return allTasks;
+}
+
+function formatTaskRow(task: asana.resources.Tasks.Type, timezone: string) : string[] {
+  const startAt = task.start_at
+    ? moment(task.start_at).tz(timezone)
+    : task.start_on
+    ? moment(task.start_on)
+    : null;
+
+  const dueAt = task.due_at
+    ? moment(task.due_at).tz(timezone)
+    : task.due_on
+    ? moment(task.due_on)
+    : null;
+
+  const dateFormat = 'ddd, MMMM Do';
+  const timeFormat = 'h:mm a';
+  const sameDate = startAt && dueAt && startAt.isSame(dueAt, 'day');
+  const startTimeString = task.start_at && startAt ? startAt.format(timeFormat) : '';
+  const endTimeString = task.due_at && dueAt ? dueAt.format(timeFormat) : '';
+
+  let dateRange = '-';
+  if (startAt || dueAt) {
+    if (sameDate) {
+      dateRange = `${startAt!.format(dateFormat)} ${startTimeString}${endTimeString ? ` - ${endTimeString}` : ''}`;
+    } else {
+      const startDateString = startAt ? `${startAt.format(dateFormat)}${startTimeString ? ` ${startTimeString}` : ''}` : '';
+      const endDateString = dueAt ? `${dueAt.format(dateFormat)}${endTimeString ? ` ${endTimeString}` : ''}` : '';
+      dateRange = `${startDateString} - ${endDateString}`;
+    }
+  }
+
+  return [task.name, dateRange, task.notes || '-'];
 }
 
 function generatePDF(tasks:asana.resources.Tasks.Type[], project: asana.resources.Projects.Type, res: Response) {
@@ -39,28 +86,41 @@ function generatePDF(tasks:asana.resources.Tasks.Type[], project: asana.resource
 
   const doc = new PDFDocument({
     size: "LETTER",
-    margin: 20,
-    layout: 'landscape'
+    margin: 40,
   })
   doc.pipe(res);
 
   const timezone = process.env.TZ || "UTC";
 
-  const rows = tasks.map((task) => {
-    const startDate = task.start_at
-      ? moment(task.start_at).tz(timezone).format('MM/DD/YYYY hh:mm A')
-      : '-';
-    const endDate = task.due_at
-      ? moment(task.due_at).tz(timezone).format('MM/DD/YYYY hh:mm A')
-      : '-';
-
-    return [task.name, startDate, endDate, task.notes || '-'];
-  });
+  const rows = tasks.map(task => formatTaskRow(task, timezone));
+  const headerOptions = {
+    headerColor: '#FFFFFF',
+    headerOpacity: 1,
+    headerAlign: 'left',
+  };
 
   doc.table({
-    title: `Schedule for ${project.name}`,
-    headers: ['Name', 'Start Date', 'End Date', 'Notes'],
+    headers: [{
+      ...headerOptions,
+      label: 'EVENT',
+    }, {
+      ...headerOptions,
+      label: 'TIME',
+    }, {
+      ...headerOptions,
+      label: 'NOTES',
+    }],
     rows,
+  },
+  {
+    title: {
+      label: `Schedule for ${project.name}`,
+      fontFamily: 'Helvetica-Bold',
+      fontSize: 16,
+    },
+
+    padding: [10, 0, 10, 0],
+    columnSpacing: 8,
   });
 
   doc.end();
