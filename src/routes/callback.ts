@@ -118,7 +118,11 @@ function generatePDF(tasks:asana.resources.Tasks.Type[], project: asana.resource
       fontFamily: 'Helvetica-Bold',
       fontSize: 16,
     },
-
+    subtitle: {
+      label: " ",
+      fontFamily: 'Helvetica-Bold',
+      fontSize: 14,
+    },
     padding: [10, 0, 10, 0],
     columnSpacing: 8,
   });
