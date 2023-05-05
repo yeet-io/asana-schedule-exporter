@@ -8,7 +8,9 @@ router.get('/', async (req, res) => {
   const projectId = req.query.projectId as string;
   const client = asanaClient();
 
-  const url = client.app.asanaAuthorizeUrl();
+  const url = client.app.asanaAuthorizeUrl({
+    redirectUri: process.env.ASANA_REDIRECT_URI,
+  });
 
   // need to add state params. asana client sucks.
   const parsedUrl = new URL(url);
