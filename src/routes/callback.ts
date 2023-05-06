@@ -81,7 +81,7 @@ function generatePDF(tasks:asana.resources.Tasks.Type[], project: asana.resource
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader(
     'Content-Disposition',
-    `attachment; filename=${project.name}-${moment().format('YYYYMMDDHHmmss')}.pdf`
+    `attachment; filename=pre-market timeline ${project.name} ${moment().format('YYYY-MM-DD HH:MM')}.pdf`
   );
 
   const doc = new PDFDocument({
