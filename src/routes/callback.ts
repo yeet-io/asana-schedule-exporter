@@ -114,14 +114,16 @@ function generatePDF(tasks:asana.resources.Tasks.Type[], project: asana.resource
   },
   {
     title: {
-      label: `Schedule for ${project.name}`,
+      label: `Pre-Market Timeline`,
       fontFamily: 'Helvetica-Bold',
+      color: '#1F1F1F',
       fontSize: 16,
     },
     subtitle: {
-      label: " ",
-      fontFamily: 'Helvetica-Bold',
+      label: project.name,
+      fontFamily: 'Helvetica',
       fontSize: 14,
+      color: '#000000',
     },
     padding: [10, 0, 10, 0],
     columnSpacing: 8,
