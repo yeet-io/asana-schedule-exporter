@@ -70,7 +70,13 @@ function formatTaskRow(task: asana.resources.Tasks.Type, timezone: string) : str
     } else {
       const startDateString = startAt ? `${startAt.format(dateFormat)}${startTimeString ? ` ${startTimeString}` : ''}` : '';
       const endDateString = dueAt ? `${dueAt.format(dateFormat)}${endTimeString ? ` ${endTimeString}` : ''}` : '';
-      dateRange = `${startDateString} - ${endDateString}`;
+      if(startDateString && endDateString) {
+        dateRange = `${startDateString} - ${endDateString}`;
+      } else if(startDateString) {
+        dateRange = startDateString
+      } else {
+        dateRange = endDateString
+      }
     }
   }
 
